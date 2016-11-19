@@ -1,7 +1,9 @@
 def scan(sensor,T_offset,H_offset):
+    import gc
     temp = round(sensor.read_temperature()+T_offset,1)
     humi = round(sensor.read_humidity()+H_offset,1)
     press_sea = round(sensor.read_pressure()/100 + 12*3,1)
+    gc.collect()
     return temp,humi,press_sea
 
 
@@ -15,20 +17,26 @@ def mytime():
 
 
 def plotextractor(a):
+    import numpy, re
     f=open('weatherlog.txt','r')
     myfile=f.read()
     mylines=myfile.split('\n')
     mylines.pop(-1)
-
+    f.close()
+    
     mylist=[]
     for element in mylines:
         element=element.split(', ')
-        mylist.append(element[a])    
+        if re.search("[+-]?\d+(?:\.\d+)?", element[a]) == None:
+            mylist.append(numpy.nan)
+        else:
+            mylist.append(element[a])
+    del mylines
     return mylist
 
 
 
-def myplotter(column1,column2,quantity,plottimedays):
+def myplotter(column1,column2,column3,quantity,plottimedays):
     # Force matplotlib to not use any Xwindows backend.
     import matplotlib, numpy, datetime
     matplotlib.use('Agg')
@@ -40,19 +48,34 @@ def myplotter(column1,column2,quantity,plottimedays):
     timelist = plotextractor(0)
     y1 = plotextractor(column1)
     y2 = plotextractor(column2)
-
+    y3 = plotextractor(column3)
+    #y3 = filter(None, plotextractor(column3))
+    #print(plotextractor(colum3))
+    #y3 = [77 if x==None else x for x in plotextractor(column3)]
+    #print(y3)
+    #print(type(y3))
+    
     #define image size
     fig, ax = plt.subplots(figsize=(36,8))
-    #rotate dates on x-axis
-    plt.xticks(rotation=45)
     #plot title
     plt.title('FGG36 weather' + '  '*90 + mytime(),loc='right')
+    #rotate dates on x-axis
+    plt.xticks(rotation=45)
+    plt.tick_params(labelright=True)
+    
+    
     
 
     #change readable timestampt to datetime-objects
     x=[]
     for element in timelist:
         x.append(datetime.datetime(int(element[0:4]),int(element[5:7]),int(element[8:10]),int(element[11:13]),int(element[14:16])))
+
+    #adding ZAMG-data implemented later: Hence, x and y lists are shorter
+    # -> workaround!
+    xZAMG=[]
+    for i in range(len(y3)):
+        xZAMG.append(x[len(x)-len(y3)+i])
 
     #distinguish between long and short plots - define plotstart
     #(long means all date (0) and short means e.g. 7 dayss)
@@ -82,12 +105,14 @@ def myplotter(column1,column2,quantity,plottimedays):
     #define legend    
     plt.plot(x,y1,label="inside")
     plt.plot(x,y2,label="outside")
+    plt.plot(xZAMG,y3,label="ZAMG",marker='_',linewidth=0)
     plt.legend(bbox_to_anchor=(0.51, 0.95), borderaxespad=0.)
 
     #save
     plt.savefig(namestring + '.png', bbox_inches='tight')
 
     #clean to prevent full RAM
+    del x, xZAMG,timelist, y1,y2,y3,date1,date2,namestring
     plt.clf()
     plt.close()
     gc.collect()
@@ -134,4 +159,42 @@ def myftp():
     ftp.quit()
 
 
+def URLextractor():
+    try:
+        #extracts fromm ZAMG values for T,H,P
+        import urllib2, re
 
+        url = 'https://www.zamg.ac.at/cms/de/wetter/wetterwerte-analysen/wien/temperatur/?mode=geo&druckang=red'
+
+        data = urllib2.urlopen(url)
+        mydata=data.read()
+        mylines=mydata.split('\n')
+        JWarte=mylines[1101]
+        mylist=re.findall("[+-]?\d+(?:\.\d+)?", JWarte)
+        ZAMG_T = float(mylist[3])
+        ZAMG_H = float(mylist[4])
+        ZAMG_P = float(mylist[10])
+        del data,mylines,JWarte,mylist
+        return ZAMG_T, ZAMG_H, ZAMG_P
+
+    except:
+        return ', , , ,'
+
+
+
+
+def StatusPi(errorstring):
+    # saves CPU time & RAM usage if error handling occurs
+    import os, platform, sys,subprocess
+    answerRAM=str(subprocess.check_output("free -m",shell=True))
+    lsRAM=answerRAM.split(' ')
+    lsRAM=list(filter(None,lsRAM))
+    #print(lsRAM)
+    #print(len(lsRAM))
+    RAM=lsRAM[7] + ' ' + lsRAM[8] + ' ' + lsRAM[9] + '   ' + lsRAM[10] + ' ' + lsRAM[11] + ' ' + lsRAM[12][0:-5] + '   ' + lsRAM[14] + ' ' + lsRAM[15][0:-7]
+    #print(RAM)
+    mystring=str(mytime()) + '\t' + RAM + '\t   ' + errorstring + '\n'
+    return mystring
+
+
+    

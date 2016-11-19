@@ -1,8 +1,8 @@
 from Adafruit_BME280 import *
-
-import  time, threading, os
+from queue import Queue
 from datetime import datetime
 from weather_bib import *
+import  time, threading, os, logging, logging.handlers
 
 sensor1 = BME280(mode=BME280_OSAMPLE_8,address=0x76)
 sensor2 = BME280(mode=BME280_OSAMPLE_8,address=0x77)
@@ -14,49 +14,77 @@ H_offset2=0.0
 path='/home/pi/sharepi3/weather/'
 os.chdir(path)
 
-def logging():
-    while True:
-        try:
-            if (datetime.now().minute % 5)==0:
-            #if datetime.now().second % 5:
-                f=open('weatherlog.txt','a')
-                my_time = mytime()
-                mystring = str(my_time) + ', ' + str(scan(sensor1,T_offset1,H_offset1))[1:-1] + ', ' + str(scan(sensor2,T_offset2,H_offset2))[1:-1]
-                f.write(mystring+'\n')
-                f.close()
-                #print('logged!')
-            time.sleep(1)
-        except:
-            #print('Log-Fehler')
-            pass
-        time.sleep(60)
-def maintenance():
-    while True:
-        try:
-            if (datetime.now().minute % 15) == 0:
-            #if datetime.now().second % 5:
-                myplotter(1,4,'T',0)
-                myplotter(2,5,'H',0)
-                myplotter(3,6,'P',0)
-                myplotter(1,4,'T',7)
-                myplotter(2,5,'H',7)
-                myplotter(3,6,'P',7)
-                myftp()
-                #print('maintenanced!')
-            time.sleep(1)
-        except:
-            #print('maint.Fehler')
-            pass
-        time.sleep(60)
-# lock to serialize console output
-lock = threading.Lock()
+#logging
+logging.basicConfig(filename='Pilog.txt', level=logging.INFO)
+#define max logfilesize
+logging.handlers.RotatingFileHandler('Pilog.txt', maxBytes=1024, backupCount=5)
+logging.info(StatusPi('Started!'))
+
+
+def weatherlog():
+    try:
+        logging.info(StatusPi('logging...'))
+        my_time = mytime()
+        mystring = str(my_time) + ', ' + str(scan(sensor1,T_offset1,H_offset1))[1:-1] + ', ' + str(scan(sensor2,T_offset2,H_offset2))[1:-1] + ', ' + str(URLextractor())[1:-1]
+        f=open('weatherlog.txt','a')
+        f.write(mystring+'\n')
+        f.close()
+        logging.info(StatusPi('logged'))
+    except:
+        logging.info(StatusPi('Logging-Error!'))
+        pass
     
-# Create the thread pool.
-s = threading.Thread(target=logging)
-t = threading.Thread(target=maintenance)
-s.daemon = True  # thread dies when main thread (only non-daemon thread) exits.
-t.daemon = True
-s.start()
-t.start()   
-while True:
-    time.sleep(100)
+def maintenance():
+    try:
+        logging.info(StatusPi('before Plots'))
+        myplotter(1,4,7,'T',0)
+        myplotter(2,5,8,'H',0)
+        myplotter(3,6,9,'P',0)
+        myplotter(1,4,7,'T',7)
+        myplotter(2,5,8,'H',7)
+        myplotter(3,6,9,'P',7)
+        myftp()
+        logging.info(StatusPi('after upload'))
+    except:
+        logging.info(StatusPi('Maintenance-Error!'))
+        pass
+
+
+
+# lock to serialize console output
+lock = threading.Lock() 
+
+def do_work(item):
+    with lock:
+        if item == 0:
+            weatherlog()
+        elif item == 1:
+            maintenance()
+
+
+# The worker thread pulls an item from the queue and processes it
+def worker():
+    while True:
+        item = q.get()
+        do_work(item)
+        q.task_done()
+        
+    
+# Create the queue and thread pool.
+q = Queue()
+t = threading.Thread(target=worker)
+t.daemon = True  # thread dies when main thread (only non-daemon thread) exits.
+t.start()
+    
+# stuff work items on the queue (in this case, just a number).
+while 1:
+    if (datetime.now().minute % 5)==0 and q.qsize() < 3: #just 2 items in queue
+        q.put(0) #12 is random item
+    if (datetime.now().minute % 15)==0:
+        q.put(1)
+    time.sleep(60)
+        
+            
+q.join()       # block until all tasks are done   
+logging.info(StatusPi('End weather logging.'))
+
