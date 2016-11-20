@@ -17,8 +17,8 @@ os.chdir(path)
 #logging
 logging.basicConfig(filename='Pilog.txt', level=logging.INFO)
 #define max logfilesize
-logging.handlers.RotatingFileHandler('Pilog.txt', maxBytes=1024, backupCount=5)
-logging.info(StatusPi('Started!'))
+#logging.handlers.RotatingFileHandler('Pilog.txt', maxBytes=1024, backupCount=5)
+logging.info(StatusPi('\tStarted!'))
 
 
 def weatherlog():
@@ -43,6 +43,7 @@ def maintenance():
         myplotter(1,4,7,'T',7)
         myplotter(2,5,8,'H',7)
         myplotter(3,6,9,'P',7)
+        logging.info(StatusPi('after Plots'))
         myftp()
         logging.info(StatusPi('after upload'))
     except:

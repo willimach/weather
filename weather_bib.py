@@ -121,61 +121,62 @@ def myplotter(column1,column2,column3,quantity,plottimedays):
 
 def myftp():
     from ftplib import FTP
-    import weather_conf
+    import weather_conf,logging
+    try:
+        server=weather_conf.server
+        user=weather_conf.user
+        passwd=weather_conf.passwd
 
-    server=weather_conf.server
-    user=weather_conf.user
-    passwd=weather_conf.passwd
+        ftp=FTP(server,user=user,passwd=passwd)
+        ftp.cwd('www')
 
-    ftp=FTP(server,user=user,passwd=passwd)
-    ftp.cwd('www')
+        #all time plots
+        file=open('weather_T_all.png','rb')
+        ftp.storbinary('STOR weather_T_all.png',file)
+        file.close()
 
-    #all time plots
-    file=open('weather_T_all.png','rb')
-    ftp.storbinary('STOR weather_T_all.png',file)
-    file.close()
+        file=open('weather_P_all.png','rb')
+        ftp.storbinary('STOR weather_P_all.png',file)
+        file.close()
 
-    file=open('weather_P_all.png','rb')
-    ftp.storbinary('STOR weather_P_all.png',file)
-    file.close()
+        file=open('weather_H_all.png','rb')
+        ftp.storbinary('STOR weather_H_all.png',file)
+        file.close()
+        #7day plots
+        file=open('weather_T_lastdays.png','rb')
+        ftp.storbinary('STOR weather_T_lastdays.png',file)
+        file.close()
 
-    file=open('weather_H_all.png','rb')
-    ftp.storbinary('STOR weather_H_all.png',file)
-    file.close()
-    #7day plots
-    file=open('weather_T_lastdays.png','rb')
-    ftp.storbinary('STOR weather_T_lastdays.png',file)
-    file.close()
+        file=open('weather_P_lastdays.png','rb')
+        ftp.storbinary('STOR weather_P_lastdays.png',file)
+        file.close()
 
-    file=open('weather_P_lastdays.png','rb')
-    ftp.storbinary('STOR weather_P_lastdays.png',file)
-    file.close()
-
-    file=open('weather_H_lastdays.png','rb')
-    ftp.storbinary('STOR weather_H_lastdays.png',file)
-    file.close()   
-
-
-    ftp.quit()
+        file=open('weather_H_lastdays.png','rb')
+        ftp.storbinary('STOR weather_H_lastdays.png',file)
+        file.close()   
 
 
+        ftp.quit()
+    except:
+        logging.info(StatusPi('FTP-ERROR!'))
+        pass
+                     
 def URLextractor():
     try:
         #extracts fromm ZAMG values for T,H,P
-        import urllib2, re
+        import re
+        from urllib.request import urlopen
 
         url = 'https://www.zamg.ac.at/cms/de/wetter/wetterwerte-analysen/wien/temperatur/?mode=geo&druckang=red'
 
-        data = urllib2.urlopen(url)
-        mydata=data.read()
-        mylines=mydata.split('\n')
-        JWarte=mylines[1101]
+        #data = urlopen(url)
+        #mydata=str(urlopen(url).read())
+        #mylines=str(urlopen(url).read()).split('\\n')
+        JWarte=str(urlopen(url).read()).split('\\n')[1101]
         mylist=re.findall("[+-]?\d+(?:\.\d+)?", JWarte)
-        ZAMG_T = float(mylist[3])
-        ZAMG_H = float(mylist[4])
-        ZAMG_P = float(mylist[10])
-        del data,mylines,JWarte,mylist
-        return ZAMG_T, ZAMG_H, ZAMG_P
+        ZAMG = float(mylist[3]), float(mylist[4]), float(mylist[10])
+        del url, JWarte,mylist
+        return ZAMG
 
     except:
         return ', , , ,'
@@ -193,7 +194,7 @@ def StatusPi(errorstring):
     #print(len(lsRAM))
     RAM=lsRAM[7] + ' ' + lsRAM[8] + ' ' + lsRAM[9] + '   ' + lsRAM[10] + ' ' + lsRAM[11] + ' ' + lsRAM[12][0:-5] + '   ' + lsRAM[14] + ' ' + lsRAM[15][0:-7]
     #print(RAM)
-    mystring=str(mytime()) + '\t' + RAM + '\t   ' + errorstring + '\n'
+    mystring=str(mytime()) + '\t' + RAM + '\t' + errorstring
     return mystring
 
 
