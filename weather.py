@@ -15,39 +15,43 @@ path='/home/pi/sharepi3/weather/'
 os.chdir(path)
 
 #logging
-logging.basicConfig(filename='Pilog.txt', level=logging.INFO)
-#define max logfilesize
-#logging.handlers.RotatingFileHandler('Pilog.txt', maxBytes=1024, backupCount=5)
-logging.info(StatusPi('\tStarted!'))
+logfilename='Pilog.txt'
+mylogger=logging.getLogger('MyLogger')
+mylogger.setLevel(logging.INFO)
+
+handler=logging.handlers.RotatingFileHandler(logfilename,maxBytes=1024*100,backupCount=3)
+mylogger.addHandler(handler)
+
+mylogger.info(StatusPi('\t\tStarted!'))
 
 
 def weatherlog():
     try:
-        logging.info(StatusPi('logging...'))
+        mylogger.info(StatusPi('logging...'))
         my_time = mytime()
         mystring = str(my_time) + ', ' + str(scan(sensor1,T_offset1,H_offset1))[1:-1] + ', ' + str(scan(sensor2,T_offset2,H_offset2))[1:-1] + ', ' + str(URLextractor())[1:-1]
         f=open('weatherlog.txt','a')
         f.write(mystring+'\n')
         f.close()
-        logging.info(StatusPi('logged'))
+        mylogger.info(StatusPi('logged'))
     except:
-        logging.info(StatusPi('Logging-Error!'))
+        mylogger.info(StatusPi('Logging-Error!'))
         pass
     
 def maintenance():
     try:
-        logging.info(StatusPi('before Plots'))
+        mylogger.info(StatusPi('before Plots'))
         myplotter(1,4,7,'T',0)
         myplotter(2,5,8,'H',0)
         myplotter(3,6,9,'P',0)
         myplotter(1,4,7,'T',7)
         myplotter(2,5,8,'H',7)
         myplotter(3,6,9,'P',7)
-        logging.info(StatusPi('after Plots'))
+        mylogger.info(StatusPi('after Plots'))
         myftp()
-        logging.info(StatusPi('after upload'))
+        mylogger.info(StatusPi('after upload'))
     except:
-        logging.info(StatusPi('Maintenance-Error!'))
+        mylogger.info(StatusPi('Maintenance-Error!'))
         pass
 
 
@@ -87,5 +91,5 @@ while 1:
         
             
 q.join()       # block until all tasks are done   
-logging.info(StatusPi('End weather logging.'))
+mylogger.info(StatusPi('End weather logging.'))
 

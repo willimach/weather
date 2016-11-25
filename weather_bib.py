@@ -95,9 +95,10 @@ def myplotter(column1,column2,column3,quantity,plottimedays):
     ax.set_xlim(date1,date2)    
     ax.xaxis.set_major_locator(DayLocator())
     ax.xaxis.set_major_formatter(DateFormatter('%Y-%m-%d'))
-    
-    ax.xaxis.set_minor_locator(HourLocator([6,12,18]))
-    ax.xaxis.set_minor_formatter(DateFormatter('%H:%M'))
+
+    if plottimedays != 0:
+        ax.xaxis.set_minor_locator(HourLocator([6,12,18]))
+        ax.xaxis.set_minor_formatter(DateFormatter('%H:%M'))
 
     ax.grid(True,which='minor',linestyle='--')
     ax.grid(True,which='major',linestyle='-')
