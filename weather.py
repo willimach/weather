@@ -3,13 +3,11 @@ from queue import Queue
 from datetime import datetime
 from weather_bib import *
 import  time, threading, os, logging, logging.handlers
+import weather_conf
 
 sensor1 = BME280(mode=BME280_OSAMPLE_8,address=0x76)
 sensor2 = BME280(mode=BME280_OSAMPLE_8,address=0x77)
-T_offset1=-2.0
-T_offset2=-1.8
-H_offset1=0.0
-H_offset2=0.0
+
 
 path='/home/pi/sharepi3/weather/'
 os.chdir(path)
@@ -29,11 +27,18 @@ def weatherlog():
     try:
         mylogger.info(StatusPi('logging...'))
         my_time = mytime()
-        mystring = str(my_time) + ', ' + str(scan(sensor1,T_offset1,H_offset1))[1:-1] + ', ' + str(scan(sensor2,T_offset2,H_offset2))[1:-1] + ', ' + str(URLextractor())[1:-1]
-        f=open('weatherlog.txt','a')
-        f.write(mystring+'\n')
-        f.close()
-        mylogger.info(StatusPi('logged'))
+        inside  = scan(sensor1,weather_conf.T_offset1,weather_conf.H_offset1)
+        outside = scan(sensor2,weather_conf.T_offset2,weather_conf.H_offset2)
+
+        if inside[0] > weather_conf.T_ll and inside[0] < weather_conf.T_ul and inside[1] > weather_conf.H_ll and inside[1] < weather_conf.H_ul and inside[2] > weather_conf.P_ll and inside[2] < weather_conf.P_ul:
+            #mystring = str(my_time) + ', ' + str(scan(sensor1,T_offset1,H_offset1))[1:-1] + ', ' + str(scan(sensor2,T_offset2,H_offset2))[1:-1] + ', ' + str(URLextractor())[1:-1]
+            mystring = str(my_time) + ', ' + str(inside)[1:-1] + ', ' + str(outside)[1:-1] + ', ' + str(URLextractor())[1:-1]           
+            f=open('weatherlog.txt','a')
+            f.write(mystring+'\n')
+            f.close()
+            mylogger.info(StatusPi('logged'))
+        else:
+            mylogger.info(StatusPi(inside + outside + 'out of range!'))
     except:
         mylogger.info(StatusPi('Logging-Error!'))
         pass
